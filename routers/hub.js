@@ -1,13 +1,14 @@
-const express = require("express")
-const messageRouter = require("./message")
-const hubs = require("../hubs/hubs-model.js")
+const express = require("express");
+const messageRouter = require("./message");
+const hubs = require("../hubs/hubs-model.js");
+const { validateHubId, validateHubData } = require("../middleware/validate");
 
 // Creates a new router, or "sub-application" within our app
 // Routers can have their own endpoints, middleware, etc.
-const router = express.Router()
+const router = express.Router();
 
 // We can nest routers within routers, as deep as we want
-router.use("/:id/messages", messageRouter)
+router.use("/:id/messages", messageRouter);
 
 // The endpoint is built off of the parent router's endpoint.
 // So this endpoint is accessed at /api/hubs/:id
@@ -17,91 +18,58 @@ router.get("/", (req, res) => {
     // (everthing after the question mark)
     limit: req.query.limit,
     sortby: req.query.sortby,
-    sortdir: req.query.sortdir,
-  }
+    sortdir: req.query.sortdir
+  };
 
-  hubs.find(opts)
+  hubs
+    .find(opts)
     .then(hubs => {
-      res.status(200).json(hubs)
+      res.status(200).json(hubs);
     })
     .catch(error => {
-      console.log(error)
-      res.status(500).json({
-        message: "Error retrieving the hubs",
-      })
-    })
-})
+      next(error);
+    });
+});
 
-router.get("/:id", (req, res) => {
-  hubs.findById(req.params.id)
+router.get("/:id", validateHubId(), (req, res) => {
+  res.json(req.hub);
+});
+
+router.post("/", validateHubData(), (req, res) => {
+  hubs
+    .add(req.body)
+    .then(hub => {
+      res.status(201).json(hub);
+    })
+    .catch(error => {
+      next(error);
+    });
+});
+
+router.put("/:id", validateHubId(), validateHubData(), (req, res) => {
+  hubs
+    .update(req.params.id, req.body)
     .then(hub => {
       if (hub) {
-        res.status(200).json(hub)
-      } else {
-        res.status(404).json({ message: "Hub not found" })
+        res.status(200).json(hub);
       }
     })
     .catch(error => {
-      console.log(error)
-      res.status(500).json({
-        message: "Error retrieving the hub",
-      })
-    })
-})
+      next(error);
+    });
+});
 
-router.post("/", (req, res) => {
-  if (!req.body.name) {
-    return res.status(400).json({ message: "Missing hub name" })
-  }
-
-  hubs.add(req.body)
-    .then(hub => {
-      res.status(201).json(hub)
-    })
-    .catch(error => {
-      console.log(error)
-      res.status(500).json({
-        message: "Error adding the hub",
-      })
-    })
-})
-
-router.put("/:id", (req, res) => {
-  if (!req.body.name) {
-    return res.status(400).json({ message: "Missing hub name" })
-  }
-
-  hubs.update(req.params.id, req.body)
-    .then(hub => {
-      if (hub) {
-        res.status(200).json(hub)
-      } else {
-        res.status(404).json({ message: "The hub could not be found" })
-      }
-    })
-    .catch(error => {
-      console.log(error)
-      res.status(500).json({
-        message: "Error updating the hub",
-      })
-    })
-})
-
-router.delete("/:id", (req, res) => {
-  hubs.remove(req.params.id)
+router.delete("/:id", validateHubId(), (req, res) => {
+  hubs
+    .remove(req.params.id)
     .then(count => {
       if (count > 0) {
-        res.status(200).json({ message: "The hub has been nuked" })
-      } else {
-        res.status(404).json({ message: "The hub could not be found" })
+        res.status(200).json({ message: "The hub has been nuked" });
       }
     })
     .catch(error => {
-      console.log(error)
-      res.status(500).json({
-        message: "Error removing the hub",
-      })
-    })
-})
+      next(error);
+    });
+});
 
-module.exports = router
+module.exports = router;
